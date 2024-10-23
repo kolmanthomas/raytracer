@@ -12,6 +12,7 @@ set(TEST_NAME "raytracer_test")
 
 enable_testing()
 find_package(GTest CONFIG REQUIRED) 
+find_package(spdlog CONFIG REQUIRED)
 
 add_executable(${TARGET_NAME}) 
 add_executable(${TEST_NAME}) 
@@ -30,6 +31,10 @@ target_link_libraries(
     GTest::gtest_main 
     GTest::gmock 
     GTest::gmock_main
+)
+target_link_libraries(
+    ${TARGET_NAME} PRIVATE
+    spdlog::spdlog
 )
 
 include(GoogleTest)

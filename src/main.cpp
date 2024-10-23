@@ -4,6 +4,8 @@
 
 #include <iostream>
 
+#include "spdlog/spdlog.h"
+
 double hit_sphere(const point3& center, double radius, const ray& r) {
     vec3 oc = center - r.origin();
     auto a = r.direction().length_squared();
@@ -77,6 +79,8 @@ int main(int argc, const char *const argv[])
         }
     }
     std::clog << "\rDone.                 \n";
+
+    spdlog::info("Hello, say hi to spdlog!");
 
 }
 

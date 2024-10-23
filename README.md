@@ -6,6 +6,10 @@ We'll put something here.
 
 ## How to run
 
+**UNIX**: You'll need CMake, vcpkg and Ninja installed.
+
+**Windows**: You'll need CMake and vcpkg, but I have no idea what to substitute Ninja with (Visual studio build files?).
+
 Create a folder called "build", navigate to it, and then run the following commands:
 
 ```
