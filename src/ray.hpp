@@ -1,24 +1,27 @@
 #ifndef RAY_HPP
 #define RAY_HPP
 
-#include "vec3.hpp"
+#include "Eigen/Dense"
+
+using Eigen::Vector3d;
+using Point3d = Eigen::Vector3d;
 
 class ray {
   public:
     ray() {}
 
-    ray(const point3& origin, const vec3& direction) : orig(origin), dir(direction) {}
+    ray(const Point3d& origin, const Vector3d& direction) : orig(origin), dir(direction) {}
 
-    const point3& origin() const  { return orig; }
-    const vec3& direction() const { return dir; }
+    const Point3d& origin() const  { return orig; }
+    const Vector3d& direction() const { return dir; }
 
-    point3 at(double t) const {
+    Point3d at(double t) const {
         return orig + t*dir;
     }
 
   private:
-    point3 orig;
-    vec3 dir;
+    Point3d orig;
+    Vector3d dir;
 };
 
 #endif

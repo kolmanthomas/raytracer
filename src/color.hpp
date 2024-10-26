@@ -1,11 +1,11 @@
 #ifndef COLOR_HPP
 #define COLOR_HPP
 
-#include "vec3.hpp"
-
 #include <iostream>
 
-using color = vec3;
+#include <Eigen/Dense>
+
+using color = Eigen::Vector3d;
 
 void write_color(std::ostream& out, const color& pixel_color) {
     auto r = pixel_color.x();

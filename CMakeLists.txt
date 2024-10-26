@@ -10,9 +10,13 @@ set(TARGET_NAME "raytracer")
 #set(TARGET_NAME_LIB "CLox_Lib")
 set(TEST_NAME "raytracer_test")
 
+#message(${CMAKE_PREFIX_PATH})
+#message(${VCPKG_ROOT})
+
 enable_testing()
 find_package(GTest CONFIG REQUIRED) 
 find_package(spdlog CONFIG REQUIRED)
+find_package(eigen3 CONFIG REQUIRED)
 
 add_executable(${TARGET_NAME}) 
 add_executable(${TEST_NAME}) 
@@ -25,6 +29,8 @@ set_target_properties(${TARGET_NAME} PROPERTIES
     CXX_EXTENSIONS OFF
 )
 
+#target_include_directories( ${EIGEN3_INCLUDE_DIR})
+
 target_link_libraries(
     ${TEST_NAME} PRIVATE 
     GTest::gtest 
@@ -32,6 +38,7 @@ target_link_libraries(
     GTest::gmock 
     GTest::gmock_main
 )
+#
 target_link_libraries(
     ${TARGET_NAME} PRIVATE
     spdlog::spdlog

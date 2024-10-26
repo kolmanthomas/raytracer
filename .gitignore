@@ -2,3 +2,4 @@ vcpkg/
 vcpkg_installed/
 build/
 .cache/
+vcpkg-manifest-install.log
