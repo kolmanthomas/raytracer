@@ -2,17 +2,21 @@
 #define SPHERE_HPP
 
 #include "hittable.hpp"
-#include "vec3.hpp"
+
+#include <Eigen/Dense>
+
+using Vector3d = Eigen::Vector3d;
+using Point3d = Eigen::Vector3d;
 
 class sphere : public hittable {
   public:
-    sphere(const point3& center, double radius) : center(center), radius(std::fmax(0,radius)) {}
+    sphere(const Point3d& center, double radius) : center(center), radius(std::fmax(0,radius)) {}
 
     bool hit(const ray& r, double ray_tmin, double ray_tmax, hit_record& rec) const override {
-        vec3 oc = center - r.origin();
-        auto a = r.direction().length_squared();
-        auto h = dot(r.direction(), oc);
-        auto c = oc.length_squared() - radius*radius;
+        Vector3d oc = center - r.origin();
+        auto a = r.direction().squaredNorm();
+        auto h = r.direction().dot(oc);
+        auto c = oc.squaredNorm() - radius*radius;
 
         auto discriminant = h*h - a*c;
         if (discriminant < 0)
@@ -36,7 +40,7 @@ class sphere : public hittable {
     }
 
   private:
-    point3 center;
+    Point3d center;
     double radius;
 };
 

@@ -37,7 +37,8 @@ color ray_color(const ray& r) {
 
 
 
-int main(int argc, const char *const argv[]) 
+
+void run()
 {
     // Image
 
@@ -84,12 +85,18 @@ int main(int argc, const char *const argv[])
     std::clog << "\rDone.                 \n";
 }
 
-/*
 int main(int argc, const char *const argv[])
 {
     spdlog::info("Initialized engine");
+    // <Convert command-line argiments to vector of strings>
+    // <Declare variables for parsed command line>
+    // <Process command-line arguments>
+    // <Initialize pbrt>
+    // <Parse provided scene description files>
+    // <Render the secene>
+    // <Clean up after rendering the scene>
+    run();
 }
-*/
 
 
 

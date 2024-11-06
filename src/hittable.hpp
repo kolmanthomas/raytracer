@@ -3,11 +3,25 @@
 
 #include "ray.hpp"
 
+#include <Eigen/Dense>
+
+using Vector3d = Eigen::Vector3d;
+using Point3d = Eigen::Vector3d;
+
 class hit_record {
   public:
-    point3 p;
-    vec3 normal;
+    Point3d p;
+    Vector3d normal;
     double t;
+    bool front_face;
+
+    void set_face_normal(const ray& r, const vec3& outward_normal) {
+        // Sets the hit record normal vector.
+        // NOTE: the parameter `outward_normal` is assumed to have unit length.
+
+        front_face = dot(r.direction(), outward_normal) < 0;
+        normal = front_face ? outward_normal : -outward_normal;
+    }
 };
 
 class hittable {
