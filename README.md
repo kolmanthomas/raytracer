@@ -2,7 +2,7 @@
 
 ## Description
 
-We'll put something here.
+A raytracer that renders non-Euclidean geometries.
 
 ## How to run
 
