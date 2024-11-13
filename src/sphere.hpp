@@ -2,8 +2,9 @@
 #define SPHERE_HPP
 
 #include "hittable.hpp"
-
-#include <Eigen/Dense>
+#include "ray.hpp"
+#include "color.hpp"
+#include "util.hpp"
 
 using Vector3d = Eigen::Vector3d;
 using Point3d = Eigen::Vector3d;
@@ -12,7 +13,7 @@ class sphere : public hittable {
   public:
     sphere(const Point3d& center, double radius) : center(center), radius(std::fmax(0,radius)) {}
 
-    bool hit(const ray& r, double ray_tmin, double ray_tmax, hit_record& rec) const override {
+    bool hit(const ray& r, Interval ray_t, hit_record& rec) const override {
         Vector3d oc = center - r.origin();
         auto a = r.direction().squaredNorm();
         auto h = r.direction().dot(oc);
@@ -26,15 +27,17 @@ class sphere : public hittable {
 
         // Find the nearest root that lies in the acceptable range.
         auto root = (h - sqrtd) / a;
-        if (root <= ray_tmin || ray_tmax <= root) {
+        if (!ray_t.surrounds(root)) {
             root = (h + sqrtd) / a;
-            if (root <= ray_tmin || ray_tmax <= root)
+            if (!ray_t.surrounds(root))
                 return false;
         }
 
         rec.t = root;
         rec.p = r.at(rec.t);
-        rec.normal = (rec.p - center) / radius;
+        // rec.normal = (rec.p - center) / radius;
+        Vector3d outward_normal = (rec.p - center) / radius;
+        rec.set_face_normal(r, outward_normal);
 
         return true;
     }

@@ -1,0 +1,108 @@
+#pragma once
+
+#include "util.h"
+#include "ray.hpp"
+#include "color.hpp"
+#include "hittable.hpp"
+
+
+class Camera {
+public:
+    double aspect_ratio = 1.0;
+    int image_width = 100;
+    int samples_per_pixel = 10;
+
+    void render(const hittable& world)
+    {
+        initialize();
+
+        std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
+        
+        for (int j = 0; j < image_height; j++) {
+            std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
+            for (int i = 0; i < image_width; i++) {
+                color pixel_color(0, 0, 0);
+                for (int sample = 0; sample < samples_per_pixel; sample++) {
+                    ray r = get_ray(i, j);
+                    pixel_color += ray_color(r, world);
+                }
+
+                write_color(std::cout, pixel_samples_scale * pixel_color);
+            }
+        }
+
+        std::clog << "\rDone.                 \n";
+
+    }
+
+private:
+    int    image_height;   // Rendered image height
+    double pixel_samples_scale;
+    Point3d center;         // Camera center
+    Point3d pixel00_loc;    // Location of pixel 0, 0
+    Vector3d pixel_delta_u;  // Offset to pixel to the right
+    Vector3d pixel_delta_v;  // Offset to pixel below
+    
+    void initialize()
+    {
+        image_height = int(image_width / aspect_ratio);
+        image_height = (image_height < 1) ? 1 : image_height;
+
+        pixel_samples_scale = 1.0 / samples_per_pixel;
+
+        center = Point3d(0, 0, 0);
+
+        // Determine viewport dimensions.
+        auto focal_length = 1.0;
+        auto viewport_height = 2.0;
+        auto viewport_width = viewport_height * (double(image_width)/image_height);
+
+        // Calculate the vectors across the horizontal and down the vertical viewport edges.
+        auto viewport_u = Vector3d(viewport_width, 0, 0);
+        auto viewport_v = Vector3d(0, -viewport_height, 0);
+
+        // Calculate the horizontal and vertical delta vectors from pixel to pixel.
+        pixel_delta_u = viewport_u / image_width;
+        pixel_delta_v = viewport_v / image_height;
+
+        // Calculate the location of the upper left pixel.
+        auto viewport_upper_left =
+            center - Vector3d(0, 0, focal_length) - viewport_u/2 - viewport_v/2;
+        pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
+    }
+
+    ray get_ray(int i, int j) const {
+        // Construct a camera ray originating from the origin and directed at randomly sampled
+        // point around the pixel location i, j.
+
+        auto offset = sample_square();
+        auto pixel_sample = pixel00_loc
+                          + ((i + offset.x()) * pixel_delta_u)
+                          + ((j + offset.y()) * pixel_delta_v);
+
+        auto ray_origin = center;
+        auto ray_direction = pixel_sample - ray_origin;
+
+        return ray(ray_origin, ray_direction);
+
+    }
+
+    Vector3d sample_square() const {
+        return Vector3d(random_double() - 0.5, random_double() - 0.5, 0);
+    }
+
+    color ray_color(const ray& r, const hittable& world) const {
+        hit_record rec;
+        if (world.hit(r, Interval(0, inf), rec)) {
+            Vector3d direction = random_on_hemisphere(rec.normal);
+            return 0.5 * ray_color(ray(rec.p, direction), world);
+        }
+
+        Vector3d unit_direction = r.direction().normalized();
+        auto a = 0.5*(unit_direction.y() + 1.0);
+        return (1.0-a)*color(1.0, 1.0, 1.0) + a*color(0.5, 0.7, 1.0);
+
+    }
+    
+
+};

@@ -11,12 +11,13 @@ set(TARGET_NAME "raytracer")
 set(TEST_NAME "raytracer_test")
 
 #message(${CMAKE_PREFIX_PATH})
-#message(${VCPKG_ROOT})
+message(${CMAKE_SOURCE_DIR}/src)
 
 enable_testing()
 find_package(GTest CONFIG REQUIRED) 
 find_package(spdlog CONFIG REQUIRED)
 find_package(eigen3 CONFIG REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
 
 add_executable(${TARGET_NAME}) 
 add_executable(${TEST_NAME}) 
@@ -42,6 +43,13 @@ target_link_libraries(
 target_link_libraries(
     ${TARGET_NAME} PRIVATE
     spdlog::spdlog
+    glfw
+)
+
+target_include_directories(
+    ${TEST_NAME} 
+    PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
 )
 
 include(GoogleTest)
