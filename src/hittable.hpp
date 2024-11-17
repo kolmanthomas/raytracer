@@ -7,10 +7,13 @@
 using Vector3d = Eigen::Vector3d;
 using Point3d = Eigen::Vector3d;
 
+class Material;
+
 class hit_record {
   public:
     Point3d p;
     Vector3d normal;
+    std::shared_ptr<Material> mat;
     double t;
     bool front_face;
 

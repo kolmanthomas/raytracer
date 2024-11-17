@@ -2,8 +2,7 @@ cmake_minimum_required(VERSION 3.25)
 
 #include(${VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake)
 
-project(CLox
-    VERSION 1.0)
+project(CLox)
     
 
 set(TARGET_NAME "raytracer")

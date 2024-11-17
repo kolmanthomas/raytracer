@@ -20,6 +20,12 @@ public:
         return min < x && x < max;
     }
 
+    Interval expand(double delta)
+    {
+        auto padding = delta/2;
+        return Interval(min - padding, max + padding);
+    }
+
     double clamp(double x) const {
         if (x < min) return min;
         if (x > max) return max;

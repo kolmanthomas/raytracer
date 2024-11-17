@@ -11,7 +11,8 @@ using Point3d = Eigen::Vector3d;
 
 class sphere : public hittable {
   public:
-    sphere(const Point3d& center, double radius) : center(center), radius(std::fmax(0,radius)) {}
+    sphere(const Point3d& center, double radius, std::shared_ptr<Material> mat) 
+    : center(center), radius(std::fmax(0,radius)), mat(mat) {}
 
     bool hit(const ray& r, Interval ray_t, hit_record& rec) const override {
         Vector3d oc = center - r.origin();
@@ -35,9 +36,9 @@ class sphere : public hittable {
 
         rec.t = root;
         rec.p = r.at(rec.t);
-        // rec.normal = (rec.p - center) / radius;
         Vector3d outward_normal = (rec.p - center) / radius;
         rec.set_face_normal(r, outward_normal);
+        rec.mat = mat;
 
         return true;
     }
@@ -45,6 +46,7 @@ class sphere : public hittable {
   private:
     Point3d center;
     double radius;
+    std::shared_ptr<Material> mat;
 };
 
 #endif
