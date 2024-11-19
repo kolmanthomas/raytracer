@@ -1,3 +1,9 @@
 {
-    "dependencies" : ["gtest", "eigen3", "spdlog", "glfw3"]
+    "name": "raytracer",
+    "dependencies" : [
+        "gtest", 
+        "eigen3", 
+        "spdlog", 
+        "glfw3"
+    ]
 }

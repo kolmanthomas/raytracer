@@ -1,3 +1,7 @@
+#include "vulkan/vulkan.hpp"
+#include "GLFW/glfw3.h"
+
+// #include "vulkan/vulkan.hpp"
 #include "util.hpp"
 #include "hittable.hpp"
 #include "hittable_list.hpp"
@@ -6,10 +10,20 @@
 #include "camera.hpp"
 #include "material.hpp"
 
+#include <stdexcept>
+
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
+#define SPDLOG_TRACE_ON
 #include "spdlog/spdlog.h"
+#include "spdlog/sinks/stdout_sinks.h"
+#include "spdlog/sinks/ansicolor_sink.h"
 
 using Vector3d = Eigen::Vector3d;
 using Point3d = Eigen::Vector3d;
+
+void init_window()
+{
+}
 
 void run()
 {
@@ -108,6 +122,131 @@ void run()
     cam.render(world);
 }
 
+void GLFW_custom_error_callback(int err, const char* description) {
+    SPDLOG_ERROR("GLFW error no. {}: \"{}\"", err, description);
+}
+    
+
+/*
+ * Fails if init_glfw is not called
+ */
+void create_instance(const std::string& application_name)
+{
+    SPDLOG_INFO("Creating VkApplicationInfo...");
+    // vulkan.hpp:
+    // VULKAN_HPP_CONSTEXPR ApplicationInfo( const char * pApplicationName_   = {},
+    //                                       uint32_t     applicationVersion_ = {},
+    //                                       const char * pEngineName_        = {},
+    //                                       uint32_t     engineVersion_      = {},
+    //                                       uint32_t     apiVersion_         = {},
+    //                                       const void * pNext_              = nullptr ) VULKAN_HPP_NOEXCEPT
+    // 
+    vk::ApplicationInfo app_info {
+        application_name.data(),
+        VK_MAKE_VERSION(1, 0, 0),
+        "No Engine",
+        VK_MAKE_VERSION(1, 0, 0),
+        VK_API_VERSION_1_0
+    };
+    SPDLOG_INFO("Created VkApplicationInfo");
+
+    uint32_t glfwExtensionCount = 0;
+    const char** glfwExtensions;
+    glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+
+    SPDLOG_INFO("Creating VkInstance...");
+    // 
+    // vulkan.hpp:
+    //
+    // VULKAN_HPP_CONSTEXPR InstanceCreateInfo( VULKAN_HPP_NAMESPACE::InstanceCreateFlags     flags_                   = {},
+    //                                          const VULKAN_HPP_NAMESPACE::ApplicationInfo * pApplicationInfo_        = {},
+    //                                          uint32_t                                      enabledLayerCount_       = {},
+    //                                          const char * const *                          ppEnabledLayerNames_     = {},
+    //                                          uint32_t                                      enabledExtensionCount_   = {},
+    //                                          const char * const *                          ppEnabledExtensionNames_ = {},
+    //                                          const void *                                  pNext_                   = nullptr) VULKAN_HPP_NOEXCEPT
+
+    /*
+    vk::InstanceCreateInfo create_info {
+        0,
+        app_info,
+        0,
+        nullptr,
+        0,
+    };
+    SPDLOG_INFO("Created VkInstance");
+    */
+}
+
+// Functor
+struct GLFWwindow_deleter {
+        void operator()(GLFWwindow* window) 
+        {
+            glfwDestroyWindow(window);
+            SPDLOG_INFO("Deleted GLFWwindow");
+        }
+};
+using GLFWwindow_h = std::unique_ptr<GLFWwindow, GLFWwindow_deleter>;
+
+
+/*
+* MT-Unsafe
+*/
+GLFWwindow_h init_glfw()
+{
+    int major, minor, rev;
+    glfwGetVersion(&major, &minor, &rev);
+    SPDLOG_INFO("GLFW version {}.{}.{}", major, minor, rev);
+
+    glfwSetErrorCallback(GLFW_custom_error_callback);
+
+    SPDLOG_INFO("Initializing GLFW...");
+    if (!glfwInit()) {
+        SPDLOG_CRITICAL("Failed to initialize GLFW");
+    }
+    SPDLOG_INFO("Initialized GLFW");
+
+    /*
+    if (!glfwVulkanSupported()) {
+        throw std::runtime_error("Ungodly error");
+    }
+    */
+
+    // No errors can be made when GLFW is initialized and enums are valid
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    SPDLOG_INFO("Passed window hints to GLFW");
+
+    SPDLOG_INFO("Initializing GLFW window...");
+    GLFWwindow * window = glfwCreateWindow(640, 480, "Raytracer", NULL, NULL);
+    if (!window) {
+        SPDLOG_CRITICAL("Failed to create GLFW window.");
+        throw std::runtime_error("Failed window creation");
+    }
+    SPDLOG_INFO("Initialized GLFW window");
+    
+    return GLFWwindow_h { window };
+}
+
+/*
+*
+*/
+void init_vulkan()
+{
+    create_instance("Hello!");
+}
+
+void cleanup()
+{
+    glfwTerminate();
+    SPDLOG_INFO("Terminated GLFW");
+}
+
+
+
+
+
+
 int main(int argc, const char *const argv[])
 {
     // <Convert command-line argiments to vector of strings>
@@ -117,7 +256,28 @@ int main(int argc, const char *const argv[])
     // <Parse provided scene description files>
     // <Render the secene>
     // <Clean up after rendering the scene>
-    run();
+    
+    // run();
+    spdlog::set_level(spdlog::level::trace);
+    spdlog::set_pattern("[%^%l%$] [source %s] [function %!] [line %#] %v");
+    // spdlog::set_pattern("%^[%l]%$");
+    // spdlog::set_pattern("[%^---%L---%$]");
+    // spdlog::set_pattern("%^[%l]%$ [source %s] [function %!] [line %#] %v");
+    // auto console = spdlog::stdout_logger_mt("console");
+    // auto console = spdlog::("console");
+    // spdlog::set_default_logger(console);
+
+    SPDLOG_INFO("Initializing engine");
+    GLFWwindow_h window = init_glfw();
+    init_vulkan();
+
+    while (!glfwWindowShouldClose(window.get())) {
+//        glfwSwapBuffers(window.get());
+//       glfwPollEvents();
+    }
+    cleanup();
+
+    return EXIT_SUCCESS;
 }
 
 
