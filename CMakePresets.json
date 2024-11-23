@@ -1,18 +1,51 @@
 {
-  "version": 2,
-  "configurePresets": [
+    "version": 2,
+    "configurePresets": [
     {
-      "name": "default",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build",
-      "cacheVariables": {
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "VCPKG_LIBRARY_LINKAGE": "static",
-        "VCPKG_TARGET_TRIPLET": "x64-osx"
-      }
+        "name": "default",
+        "displayName": "Default config -- do not use directly, it is meant to be inherited.",
+        "generator": "Ninja",
+        "binaryDir": "${sourceDir}/build",
+        "cacheVariables": {
+            "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+            "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+            "VCPKG_LIBRARY_LINKAGE": "static"
+        }
+    },
+    {
+        "name": "debug",
+        "displayName": "Debug config -- do not use directly, it is meant to be inherited.",
+        "inherits": ["default"],
+        "cacheVariables": {
+            "CMAKE_BUILD_TYPE": "Debug"
+        }
+    },
+    {
+        "name": "release",
+        "displayName": "Release config -- do not use directly, it is meant to be inherited.",
+        "inherits": ["default"],
+        "cacheVariables": {
+            "CMAKE_BUILD_TYPE": "Release"
+        }
+    },
+    {
+        "name": "osx-debug",
+        "displayName": "OSX Debug Config",
+        "inherits": ["debug"],
+        "cacheVariables": {
+            "VCPKG_TARGET_TRIPLET": "x64-osx"
+        }
+    },
+    {
+        "name": "osx-release",
+        "displayName": "OSX Release Config",
+        "inherits": ["release"],
+        "cacheVariables": {
+            "VCPKG_TARGET_TRIPLET": "x64-osx"
+        }
+
     }
-  ]
+]
 }
 
 

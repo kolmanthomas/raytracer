@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.26)
 
 #include(${VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake)
 
-project(CLox)
+project(Raytracer VERSION 0.0.1 LANGUAGES CXX)
     
 
 set(TARGET_NAME "raytracer")
