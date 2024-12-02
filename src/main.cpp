@@ -1,7 +1,8 @@
-#include "vulkan/vulkan.hpp"
-#include "GLFW/glfw3.h"
+#define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
 
-// #include "vulkan/vulkan.hpp"
+#include "src/gpu/gpu.hpp"
+
 #include "util.hpp"
 #include "hittable.hpp"
 #include "hittable_list.hpp"
@@ -9,17 +10,25 @@
 #include "interval.hpp"
 #include "camera.hpp"
 #include "material.hpp"
+#include "window.hpp"
+
+#include "src/gpu/instance.hpp"
+#include "src/gpu/physical_device.hpp"
+#include "src/gpu/logical_device.hpp"
+#include "src/gpu/surface.hpp"
+#include "src/handy.hpp"
 
 #include <stdexcept>
 
-#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
-#define SPDLOG_TRACE_ON
 #include "spdlog/spdlog.h"
-#include "spdlog/sinks/stdout_sinks.h"
-#include "spdlog/sinks/ansicolor_sink.h"
 
 using Vector3d = Eigen::Vector3d;
 using Point3d = Eigen::Vector3d;
+
+const std::vector<const char*> required_device_extensions = {
+    VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME,
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
 
 void init_window()
 {
@@ -122,128 +131,55 @@ void run()
     cam.render(world);
 }
 
-void GLFW_custom_error_callback(int err, const char* description) {
-    SPDLOG_ERROR("GLFW error no. {}: \"{}\"", err, description);
-}
-    
-
-/*
- * Fails if init_glfw is not called
- */
-void create_instance(const std::string& application_name)
-{
-    SPDLOG_INFO("Creating VkApplicationInfo...");
-    // vulkan.hpp:
-    // VULKAN_HPP_CONSTEXPR ApplicationInfo( const char * pApplicationName_   = {},
-    //                                       uint32_t     applicationVersion_ = {},
-    //                                       const char * pEngineName_        = {},
-    //                                       uint32_t     engineVersion_      = {},
-    //                                       uint32_t     apiVersion_         = {},
-    //                                       const void * pNext_              = nullptr ) VULKAN_HPP_NOEXCEPT
-    // 
-    vk::ApplicationInfo app_info {
-        application_name.data(),
-        VK_MAKE_VERSION(1, 0, 0),
-        "No Engine",
-        VK_MAKE_VERSION(1, 0, 0),
-        VK_API_VERSION_1_0
-    };
-    SPDLOG_INFO("Created VkApplicationInfo");
-
-    uint32_t glfwExtensionCount = 0;
-    const char** glfwExtensions;
-    glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
-    SPDLOG_INFO("Creating VkInstance...");
-    // 
-    // vulkan.hpp:
-    //
-    // VULKAN_HPP_CONSTEXPR InstanceCreateInfo( VULKAN_HPP_NAMESPACE::InstanceCreateFlags     flags_                   = {},
-    //                                          const VULKAN_HPP_NAMESPACE::ApplicationInfo * pApplicationInfo_        = {},
-    //                                          uint32_t                                      enabledLayerCount_       = {},
-    //                                          const char * const *                          ppEnabledLayerNames_     = {},
-    //                                          uint32_t                                      enabledExtensionCount_   = {},
-    //                                          const char * const *                          ppEnabledExtensionNames_ = {},
-    //                                          const void *                                  pNext_                   = nullptr) VULKAN_HPP_NOEXCEPT
-
-    /*
-    vk::InstanceCreateInfo create_info {
-        0,
-        app_info,
-        0,
-        nullptr,
-        0,
-    };
-    SPDLOG_INFO("Created VkInstance");
-    */
-}
-
-// Functor
-struct GLFWwindow_deleter {
-        void operator()(GLFWwindow* window) 
-        {
-            glfwDestroyWindow(window);
-            SPDLOG_INFO("Deleted GLFWwindow");
-        }
+struct VulkanMemoryManagement {
+public:
+    VkInstance instance;
+    VkDebugUtilsMessengerEXT debugMessenger;
+    VkSurfaceKHR surface;
+    GLFWwindow* window;
+    gpu::physical_device::LightlyDevice physical_device;
+    VkDevice device;
+    VkQueue graphics_queue;
 };
-using GLFWwindow_h = std::unique_ptr<GLFWwindow, GLFWwindow_deleter>;
-
-
-/*
-* MT-Unsafe
-*/
-GLFWwindow_h init_glfw()
-{
-    int major, minor, rev;
-    glfwGetVersion(&major, &minor, &rev);
-    SPDLOG_INFO("GLFW version {}.{}.{}", major, minor, rev);
-
-    glfwSetErrorCallback(GLFW_custom_error_callback);
-
-    SPDLOG_INFO("Initializing GLFW...");
-    if (!glfwInit()) {
-        SPDLOG_CRITICAL("Failed to initialize GLFW");
-    }
-    SPDLOG_INFO("Initialized GLFW");
-
-    /*
-    if (!glfwVulkanSupported()) {
-        throw std::runtime_error("Ungodly error");
-    }
-    */
-
-    // No errors can be made when GLFW is initialized and enums are valid
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    SPDLOG_INFO("Passed window hints to GLFW");
-
-    SPDLOG_INFO("Initializing GLFW window...");
-    GLFWwindow * window = glfwCreateWindow(640, 480, "Raytracer", NULL, NULL);
-    if (!window) {
-        SPDLOG_CRITICAL("Failed to create GLFW window.");
-        throw std::runtime_error("Failed window creation");
-    }
-    SPDLOG_INFO("Initialized GLFW window");
-    
-    return GLFWwindow_h { window };
-}
+VulkanMemoryManagement vmm; 
 
 /*
 *
 */
-void init_vulkan()
-{
-    create_instance("Hello!");
-}
-
 void cleanup()
 {
+    gpu::instance::DestroyDebugUtilsMessengerEXT(vmm.instance, vmm.debugMessenger, nullptr);
+    //vkDestroySurfaceKHR(vmm.instance, vmm.surface, nullptr);
+    vkDestroyInstance(vmm.instance, nullptr);
+    glfwDestroyWindow(vmm.window);
     glfwTerminate();
     SPDLOG_INFO("Terminated GLFW");
 }
 
 
+void execute()
+{
+    SPDLOG_INFO("Initializing engine");
+    GLFWwindow* window = init_glfw();
 
+    VulkanMemoryManagement vmm; 
+    vmm.instance = gpu::instance::create_instance("Raytracer");
+    gpu::instance::setup_debug_messenger(vmm.instance, vmm.debugMessenger);
+    vmm.surface = gpu::surface::create_surface(vmm.instance, window);
+    vmm.physical_device = gpu::physical_device::pick_physical_device(vmm.instance, vmm.surface, required_device_extensions);
+    vmm.device = gpu::logical_device::create_logical_device(vmm.physical_device, required_device_extensions);
+
+    /*
+    vkGetDeviceQueue(vmm.device, gpu::physical_device::find_queue_families(vmm.physical_device, { VK_QUEUE_GRAPHICS_BIT }).graphics_family.value(), 0, &vmm.graphics_queue);
+    */
+    /*
+    while (!glfwWindowShouldClose(window.get())) {
+        glfwSwapBuffers(window.get());
+        glfwPollEvents();
+    }
+    */
+    // run();
+}
 
 
 
@@ -266,16 +202,19 @@ int main(int argc, const char *const argv[])
     // auto console = spdlog::stdout_logger_mt("console");
     // auto console = spdlog::("console");
     // spdlog::set_default_logger(console);
+    SPDLOG_TRACE("Hello!");
 
     SPDLOG_INFO("Initializing engine");
-    GLFWwindow_h window = init_glfw();
-    init_vulkan();
-
-    while (!glfwWindowShouldClose(window.get())) {
-//        glfwSwapBuffers(window.get());
-//       glfwPollEvents();
-    }
+    execute();
     cleanup();
+
+    /*
+    while (!glfwWindowShouldClose(window.get())) {
+        glfwSwapBuffers(window.get());
+        glfwPollEvents();
+    }
+    */
+    // run();
 
     return EXIT_SUCCESS;
 }
