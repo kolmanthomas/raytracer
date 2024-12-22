@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "util.hpp"
+#include "src/util.hpp"
 
 #include <Eigen/Dense>
 

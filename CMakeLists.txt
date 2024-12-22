@@ -13,6 +13,7 @@ set(TARGET_NAME "raytracer")
 #set(TARGET_NAME_LIB "CLox_Lib")
 set(TEST_NAME "raytracer_test")
 set(TEST_NAME "raytracer_test")
+set(COMPILE_FEATURES cxx_std_20)
 
 #message(${CMAKE_PREFIX_PATH})
 message(${CMAKE_SOURCE_DIR}/src)
@@ -31,7 +32,8 @@ add_executable(${TEST_NAME})
 #add_library(${TARGET_NAME_LIB} STATIC)
  
 #target_link_libraries(${TARGET_NAME} ${TARGET_NAME_LIB})
-target_compile_features(${TARGET_NAME} PUBLIC cxx_std_20)
+target_compile_features(${TARGET_NAME} PUBLIC ${COMPILE_FEATURES})
+target_compile_features(${TEST_NAME} PUBLIC ${COMPILE_FEATURES})
 
 set_target_properties(${TARGET_NAME} PROPERTIES 
     CXX_STANDARD_REQUIRED ON
@@ -62,7 +64,7 @@ target_include_directories(
 target_include_directories(
     ${TEST_NAME} 
     PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}
 )
 
 include(GoogleTest)

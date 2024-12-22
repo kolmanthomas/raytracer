@@ -1,6 +1,8 @@
 #define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
 #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
 
+#define INSTRUMENTATION_ON
+
 #include "src/gpu/gpu.hpp"
 
 #include "src/gpu/command_pool.hpp"
@@ -17,7 +19,7 @@
 #include "src/gpu/swap_chain.hpp"
 #include "src/gpu/pipeline.hpp"
 
-#include "src/handy.hpp"
+#include "src/circular_buffer.hpp"
 #include "src/file.hpp"
 
 #include "src/def.hpp"
@@ -254,11 +256,9 @@ void draw_frame()
         .pSignalSemaphores = signal_semaphores,
     };
 
-    SPDLOG_INFO("Queue submission");
     if (vkQueueSubmit(vmm.graphics_queue, 1, &submit_info, vmm.in_flight_fence) != VK_SUCCESS) {
         throw std::runtime_error("Failed to submit draw command buffer!");
     }
-    SPDLOG_INFO("No queue submission");
 
     VkSwapchainKHR swap_chains[] = { vmm.swap_chain };
     VkPresentInfoKHR present_info {
@@ -312,11 +312,22 @@ void execute()
     vmm.render_finished_semaphore = gpu::create_semaphore(vmm.device);
     vmm.in_flight_fence = gpu::create_fence(vmm.device);
 
+    CircularBuffer<float, 64> framerate_buffer;
 
     SPDLOG_INFO("Beginning render loop!");
     while (!glfwWindowShouldClose(window)) {
+#ifdef INSTRUMENTATION_ON 
+        std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+#endif
         glfwPollEvents();
         draw_frame();
+
+#ifdef INSTRUMENTATION_ON
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+        auto elapsed = static_cast<float>(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+        framerate_buffer.push(elapsed);
+        SPDLOG_INFO("Frame time: {}s", framerate_buffer.moving_average().value() / 1000000);
+#endif
     }
 
     vkDeviceWaitIdle(vmm.device);
