@@ -1,6 +1,8 @@
 #include "src/gpu/surface.hpp"
 
-VkSurfaceKHR gpu::surface::create_surface(VkInstance instance, GLFWwindow* window)
+namespace gpu {
+
+VkSurfaceKHR create_surface(VkInstance instance, GLFWwindow* window)
 {
     SPDLOG_INFO("Creating window surface...");
 
@@ -14,4 +16,6 @@ VkSurfaceKHR gpu::surface::create_surface(VkInstance instance, GLFWwindow* windo
     SPDLOG_INFO("Created window surface");
 
     return surface;
+}
+
 }

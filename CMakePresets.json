@@ -29,19 +29,19 @@
         }
     },
     {
-        "name": "osx-debug",
-        "displayName": "OSX Debug Config",
+        "name": "clang-debug",
+        "displayName": "Clang Debug Config",
         "inherits": ["debug"],
         "cacheVariables": {
-            "VCPKG_TARGET_TRIPLET": "x64-osx"
+            "CMAKE_CXX_FLAGS": "-g -O0 -march=native"
         }
     },
     {
-        "name": "osx-release",
+        "name": "clang-release",
         "displayName": "OSX Release Config",
         "inherits": ["release"],
         "cacheVariables": {
-            "VCPKG_TARGET_TRIPLET": "x64-osx"
+            "CMAKE_CXX_FLAGS": "-O3 -march=native"
         }
 
     }

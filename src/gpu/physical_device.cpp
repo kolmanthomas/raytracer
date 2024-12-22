@@ -1,7 +1,6 @@
 #include "physical_device.hpp"
 
 namespace gpu {
-namespace physical_device {
 
 // @exception Immediately throw an exception if any of this fails
 LIGHTLY_API std::vector<VkQueueFamilyProperties> find_queue_families(VkPhysicalDevice device, const std::vector<VkQueueFlags>& required_queue_flags)
@@ -17,7 +16,7 @@ LIGHTLY_API std::vector<VkQueueFamilyProperties> find_queue_families(VkPhysicalD
     return queue_families;
 }
 
-LIGHTLY_API static SwapChainSupportDetails query_swap_chain_support(VkPhysicalDevice device, VkSurfaceKHR surface)
+LIGHTLY_API SwapChainSupportDetails query_swap_chain_support(VkPhysicalDevice device, VkSurfaceKHR surface)
 {
     SPDLOG_INFO("Querying swap chain support...");
     SwapChainSupportDetails details;
@@ -272,5 +271,4 @@ LIGHTLY_API LightlyDevice pick_physical_device(VkInstance& instance, VkSurfaceKH
     return lightly_device;
 }
 
-} // namespace physical_device
 } // namespace gpu

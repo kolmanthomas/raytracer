@@ -3,10 +3,15 @@ cmake_minimum_required(VERSION 3.26)
 #include(${VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake)
 
 project(Raytracer VERSION 0.0.1 LANGUAGES CXX)
+
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
     
 
 set(TARGET_NAME "raytracer")
 #set(TARGET_NAME_LIB "CLox_Lib")
+set(TEST_NAME "raytracer_test")
 set(TEST_NAME "raytracer_test")
 
 #message(${CMAKE_PREFIX_PATH})
@@ -27,6 +32,7 @@ add_executable(${TEST_NAME})
  
 #target_link_libraries(${TARGET_NAME} ${TARGET_NAME_LIB})
 target_compile_features(${TARGET_NAME} PUBLIC cxx_std_20)
+
 set_target_properties(${TARGET_NAME} PROPERTIES 
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF

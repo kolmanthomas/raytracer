@@ -5,9 +5,7 @@
 #include "spdlog/spdlog.h"
 
 namespace gpu {
-namespace surface {
 
 VkSurfaceKHR create_surface(VkInstance instance, GLFWwindow* window);
 
-}
-}
+} // namespace gpu

@@ -7,8 +7,8 @@
 #include <memory>
 #include <random>
 
-using Vector3d = Eigen::Vector3d;
-using Point3d = Eigen::Vector3d;
+using Eigen::Vector3d;
+using Point3f = Eigen::Vector3f;
 
 const double inf  = std::numeric_limits<double>::infinity();
 const double pi = 3.1415926535897932385;
@@ -74,4 +74,3 @@ inline Eigen::Vector3d reflect(const Eigen::Vector3d v, const Eigen::Vector3d& n
 {
     return v - 2*v.dot(n)*n;
 }
-

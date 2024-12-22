@@ -37,7 +37,7 @@ VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMes
     }
 }
 
-void gpu::instance::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
+void gpu::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
     if (func != nullptr) {
         func(instance, debugMessenger, pAllocator);
@@ -52,7 +52,7 @@ void populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& cr
         createInfo.pfnUserCallback = debug_callback;
 }
 
-void gpu::instance::setup_debug_messenger(VkInstance instance, VkDebugUtilsMessengerEXT& debugMessenger)
+void gpu::setup_debug_messenger(VkInstance instance, VkDebugUtilsMessengerEXT& debugMessenger)
 {
     if (!enable_validation_layers) { return; }
 
@@ -72,7 +72,7 @@ void gpu::instance::setup_debug_messenger(VkInstance instance, VkDebugUtilsMesse
 /*
  * Fails if init_glfw is not called
  */
-VkInstance gpu::instance::create_instance(const std::string& application_name)
+VkInstance gpu::create_instance(const std::string& application_name)
 {
     SPDLOG_INFO("Creating VkApplicationInfo...");
     VkApplicationInfo app_info {
@@ -138,7 +138,7 @@ VkInstance gpu::instance::create_instance(const std::string& application_name)
     return instance;
 }
 
-void gpu::instance::cleanup(VkInstance instance) {
+void gpu::cleanup(VkInstance instance) {
     // vkDestroyInstance(instance, nullptr);
 
     SPDLOG_INFO("Destroyed VkInstance");

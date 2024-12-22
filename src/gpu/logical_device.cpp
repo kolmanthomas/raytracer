@@ -1,9 +1,15 @@
 #include "src/gpu/logical_device.hpp"
 
 namespace gpu {
-namespace logical_device {
 
-VkDevice create_logical_device(const gpu::physical_device::LightlyDevice& physical_device, const std::vector<const char*>& required_device_extensions)
+VkQueue get_graphics_queue(const gpu::LightlyDevice& physical_device, VkDevice logical_device)
+{
+    VkQueue queue;
+    vkGetDeviceQueue(logical_device, physical_device.graphics_family.value(), 0, &queue);
+    return queue;
+}
+
+VkDevice create_logical_device(const gpu::LightlyDevice& physical_device, const std::vector<const char*>& required_device_extensions)
 {
     SPDLOG_INFO("Creating logical device...");
     VkDevice device;
@@ -46,8 +52,8 @@ VkDevice create_logical_device(const gpu::physical_device::LightlyDevice& physic
         throw std::runtime_error("Failed to create logical device!");
     }
 
+    SPDLOG_INFO("Logical device created successfully");
     return device;
 }
 
-} // namespace logical_device
 } // namespace gpu

@@ -17,7 +17,7 @@ void log_vector(const std::vector<T>& v, const std::string& message)
     }
 }
 
-inline const char * const bool_to_str(bool b)
+inline const char * bool_to_str(bool b)
 {
   return b ? "True" : "False";
 }

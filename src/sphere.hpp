@@ -1,15 +1,19 @@
-#ifndef SPHERE_HPP
-#define SPHERE_HPP
+#pragma once
 
-#include "hittable.hpp"
-#include "ray.hpp"
-#include "color.hpp"
-#include "util.hpp"
+#include "def.hpp"
 
-using Vector3d = Eigen::Vector3d;
-using Point3d = Eigen::Vector3d;
+inline bool hit_sphere(const Point3f& center, float radius, const Ray& r)
+{
+    Vector3f oc = center - r.origin();
+    auto a = r.direction().dot(r.direction());
+    auto b = -2.0 * r.direction().dot(oc);
+    auto c = oc.dot(oc) - radius*radius;
+    auto discriminant = b*b - 4*a*c;
+    return (discriminant >= 0);
+}
 
-class sphere : public hittable {
+/*
+class Sphere : public hittable {
   public:
     sphere(const Point3d& center, double radius, std::shared_ptr<Material> mat) 
     : center(center), radius(std::fmax(0,radius)), mat(mat) {}
@@ -48,5 +52,5 @@ class sphere : public hittable {
     double radius;
     std::shared_ptr<Material> mat;
 };
+*/
 
-#endif

@@ -3,31 +3,39 @@
 
 #include "src/gpu/gpu.hpp"
 
-#include "util.hpp"
-#include "hittable.hpp"
-#include "hittable_list.hpp"
-#include "sphere.hpp"
-#include "interval.hpp"
-#include "camera.hpp"
-#include "material.hpp"
-#include "window.hpp"
-
+#include "src/gpu/command_pool.hpp"
+#include "src/gpu/fence.hpp"
+#include "src/gpu/framebuffer.hpp"
 #include "src/gpu/instance.hpp"
 #include "src/gpu/physical_device.hpp"
+#include "src/gpu/image.hpp"
 #include "src/gpu/logical_device.hpp"
+#include "src/gpu/semaphore.hpp"
+#include "src/gpu/shader.hpp"
+#include "src/gpu/renderpass.hpp"
 #include "src/gpu/surface.hpp"
+#include "src/gpu/swap_chain.hpp"
+#include "src/gpu/pipeline.hpp"
+
 #include "src/handy.hpp"
+#include "src/file.hpp"
+
+#include "src/def.hpp"
+#include "src/render.hpp"
+#include "src/window.hpp"
 
 #include <stdexcept>
 
 #include "spdlog/spdlog.h"
 
-using Vector3d = Eigen::Vector3d;
-using Point3d = Eigen::Vector3d;
-
 const std::vector<const char*> required_device_extensions = {
     VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME,
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
+
+const std::vector<VkDynamicState> dynamic_states = {
+    VK_DYNAMIC_STATE_VIEWPORT,
+    VK_DYNAMIC_STATE_SCISSOR
 };
 
 void init_window()
@@ -38,7 +46,7 @@ void run()
 {
     // World
     
-    hittable_list world;
+    //hittable_list world;
 
     /*
     auto material_ground = std::make_shared<Lambertian>(color(0.8, 0.8, 0.0));
@@ -71,6 +79,7 @@ void run()
     cam.render(world);
     */
 
+    /*
     auto ground_material = std::make_shared<Lambertian>(color(0.5, 0.5, 0.5));
     world.add(std::make_shared<sphere>(Point3d(0,-1000,0), 1000, ground_material));
 
@@ -112,9 +121,10 @@ void run()
 
     auto material3 = std::make_shared<Metal>(color(0.7, 0.6, 0.5), 0.0);
     world.add(std::make_shared<sphere>(Point3d(4, 1, 0), 1.0, material3));
+    */
 
-    Camera cam;
 
+    /*
     cam.aspect_ratio      = 16.0 / 9.0;
     cam.image_width       = 1200;
     cam.samples_per_pixel = 10;
@@ -127,8 +137,12 @@ void run()
 
     cam.defocus_angle = 0.6;
     cam.focus_dist    = 10.0;
+    */
 
-    cam.render(world);
+    //std::ofstream file("image.ppm");
+    //render(file);
+
+    //eval();
 }
 
 struct VulkanMemoryManagement {
@@ -137,23 +151,127 @@ public:
     VkDebugUtilsMessengerEXT debugMessenger;
     VkSurfaceKHR surface;
     GLFWwindow* window;
-    gpu::physical_device::LightlyDevice physical_device;
+    gpu::LightlyDevice physical_device;
     VkDevice device;
     VkQueue graphics_queue;
+    VkSwapchainKHR swap_chain;
+    std::vector<VkImage> swap_chain_images;
+    std::vector<VkImageView> swap_chain_image_views;
+    std::vector<VkShaderModule> shader_modules {};
+    VkRenderPass render_pass;
+    VkPipelineLayout pipeline_layout;
+    VkPipeline graphics_pipeline;
+    std::vector<VkFramebuffer> swap_chain_framebuffers;
+    VkCommandPool command_pool;
+    VkCommandBuffer command_buffer;
+    
+    VkSemaphore image_available_semaphore;
+    VkSemaphore render_finished_semaphore;
+    VkFence in_flight_fence;
 };
 VulkanMemoryManagement vmm; 
 
-/*
-*
-*/
 void cleanup()
 {
-    gpu::instance::DestroyDebugUtilsMessengerEXT(vmm.instance, vmm.debugMessenger, nullptr);
-    //vkDestroySurfaceKHR(vmm.instance, vmm.surface, nullptr);
+    vkDestroySemaphore(vmm.device, vmm.image_available_semaphore, nullptr);
+    vkDestroySemaphore(vmm.device, vmm.render_finished_semaphore, nullptr);
+    vkDestroyFence(vmm.device, vmm.in_flight_fence, nullptr);
+    SPDLOG_INFO("Destroyed semaphores and fences");
+
+    vkDestroyCommandPool(vmm.device, vmm.command_pool, nullptr);
+    SPDLOG_INFO("Destroyed command pool");
+
+    for (auto framebuffer : vmm.swap_chain_framebuffers) {
+        vkDestroyFramebuffer(vmm.device, framebuffer, nullptr);
+    }
+    SPDLOG_INFO("Destroyed framebuffers");
+
+    for (auto image_view : vmm.swap_chain_image_views) {
+        vkDestroyImageView(vmm.device, image_view, nullptr);
+    }
+    SPDLOG_INFO("Destroyed image views");
+
+    vkDestroyRenderPass(vmm.device, vmm.render_pass, nullptr);
+    SPDLOG_INFO("Destroyed render pass");
+
+    vkDestroyPipeline(vmm.device, vmm.graphics_pipeline, nullptr);
+    SPDLOG_INFO("Destroyed graphics pipeline");
+
+    vkDestroyPipelineLayout(vmm.device, vmm.pipeline_layout, nullptr);
+    SPDLOG_INFO("Destroyed pipeline layout");
+
+    vkDestroySwapchainKHR(vmm.device, vmm.swap_chain, nullptr);
+    SPDLOG_INFO("Destroyed swap chain");
+
+    vkDestroySurfaceKHR(vmm.instance, vmm.surface, nullptr);
+    SPDLOG_INFO("Destroyed Vulkan surface");
+    
+    for (auto shader_module : vmm.shader_modules) {
+        vkDestroyShaderModule(vmm.device, shader_module, nullptr);
+    }
+    SPDLOG_INFO("Destroyed Vulkan shader modules");
+
+    vkDestroyDevice(vmm.device, nullptr);
+    SPDLOG_INFO("Destroyed Vulkan logical device");
+
+    if (enable_validation_layers) {
+        gpu::DestroyDebugUtilsMessengerEXT(vmm.instance, vmm.debugMessenger, nullptr);
+        SPDLOG_INFO("Destroyed debug utils messenger");
+    }
+
     vkDestroyInstance(vmm.instance, nullptr);
+    SPDLOG_INFO("Destroyed Vulkan instance");
+
     glfwDestroyWindow(vmm.window);
+    SPDLOG_INFO("Destroyed GLFW window");
+
     glfwTerminate();
     SPDLOG_INFO("Terminated GLFW");
+}
+
+void draw_frame()
+{
+    vkWaitForFences(vmm.device, 1, &vmm.in_flight_fence, VK_TRUE, std::numeric_limits<uint64_t>::max()); 
+    vkResetFences(vmm.device, 1, &vmm.in_flight_fence);
+
+    uint32_t image_index;
+    vkAcquireNextImageKHR(vmm.device, vmm.swap_chain, std::numeric_limits<uint64_t>::max(), vmm.image_available_semaphore, VK_NULL_HANDLE, &image_index);
+
+    vkResetCommandBuffer(vmm.command_buffer, 0);
+    gpu::record_command_buffer(vmm.command_buffer, vmm.render_pass, vmm.swap_chain_framebuffers, image_index, vmm.graphics_pipeline);
+
+    VkSemaphore wait_semaphores[] = {vmm.image_available_semaphore};
+    VkSemaphore signal_semaphores[] = { vmm.render_finished_semaphore };
+    VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    VkSubmitInfo submit_info {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = wait_semaphores,
+        .pWaitDstStageMask = wait_stages,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &vmm.command_buffer,
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores = signal_semaphores,
+    };
+
+    SPDLOG_INFO("Queue submission");
+    if (vkQueueSubmit(vmm.graphics_queue, 1, &submit_info, vmm.in_flight_fence) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to submit draw command buffer!");
+    }
+    SPDLOG_INFO("No queue submission");
+
+    VkSwapchainKHR swap_chains[] = { vmm.swap_chain };
+    VkPresentInfoKHR present_info {
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = signal_semaphores,
+        .swapchainCount = 1,
+        .pSwapchains = swap_chains,
+        .pImageIndices = &image_index,
+        .pResults = nullptr
+    };
+
+    vkQueuePresentKHR(vmm.graphics_queue, &present_info);
 }
 
 
@@ -162,22 +280,46 @@ void execute()
     SPDLOG_INFO("Initializing engine");
     GLFWwindow* window = init_glfw();
 
-    VulkanMemoryManagement vmm; 
-    vmm.instance = gpu::instance::create_instance("Raytracer");
-    gpu::instance::setup_debug_messenger(vmm.instance, vmm.debugMessenger);
-    vmm.surface = gpu::surface::create_surface(vmm.instance, window);
-    vmm.physical_device = gpu::physical_device::pick_physical_device(vmm.instance, vmm.surface, required_device_extensions);
-    vmm.device = gpu::logical_device::create_logical_device(vmm.physical_device, required_device_extensions);
+    vmm.instance = gpu::create_instance("Raytracer");
+    gpu::setup_debug_messenger(vmm.instance, vmm.debugMessenger);
+    vmm.surface = gpu::create_surface(vmm.instance, window);
+    vmm.physical_device = gpu::pick_physical_device(vmm.instance, vmm.surface, required_device_extensions);
+    vmm.device = gpu::create_logical_device(vmm.physical_device, required_device_extensions);
+    vmm.graphics_queue = gpu::get_graphics_queue(vmm.physical_device, vmm.device);
 
-    /*
-    vkGetDeviceQueue(vmm.device, gpu::physical_device::find_queue_families(vmm.physical_device, { VK_QUEUE_GRAPHICS_BIT }).graphics_family.value(), 0, &vmm.graphics_queue);
-    */
-    /*
-    while (!glfwWindowShouldClose(window.get())) {
-        glfwSwapBuffers(window.get());
+    vmm.swap_chain = gpu::create_swap_chain(vmm.physical_device.device, vmm.device, vmm.surface, window, 800, 600);
+    vmm.swap_chain_images = gpu::get_swap_chain_images(vmm.device, vmm.swap_chain);
+
+    vmm.swap_chain_image_views = gpu::create_image_views(vmm.swap_chain_images, vmm.device);
+
+    // Compile shaders
+    
+    auto vert_shader_code = read_binary_file("base_vert.spv");
+    auto frag_shader_code = read_binary_file("base_frag.spv");
+
+    vmm.shader_modules.push_back(gpu::create_shader_module(vmm.device, vert_shader_code));
+    vmm.shader_modules.push_back(gpu::create_shader_module(vmm.device, frag_shader_code));
+
+    vmm.render_pass = gpu::create_render_pass(vmm.device);
+    std::tie(vmm.pipeline_layout, vmm.graphics_pipeline) = gpu::create_pipeline(vmm.device, vmm.shader_modules[0], vmm.shader_modules[1], vmm.render_pass);
+
+    vmm.swap_chain_framebuffers = gpu::create_framebuffer(vmm.swap_chain_image_views, vmm.device, vmm.render_pass);
+
+    vmm.command_pool = gpu::create_command_pool(vmm.physical_device, vmm.device);
+    vmm.command_buffer = gpu::create_command_buffer(vmm.device, vmm.command_pool);
+
+    vmm.image_available_semaphore = gpu::create_semaphore(vmm.device);
+    vmm.render_finished_semaphore = gpu::create_semaphore(vmm.device);
+    vmm.in_flight_fence = gpu::create_fence(vmm.device);
+
+
+    SPDLOG_INFO("Beginning render loop!");
+    while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
+        draw_frame();
     }
-    */
+
+    vkDeviceWaitIdle(vmm.device);
     // run();
 }
 
@@ -203,6 +345,7 @@ int main(int argc, const char *const argv[])
     // auto console = spdlog::("console");
     // spdlog::set_default_logger(console);
     SPDLOG_TRACE("Hello!");
+    //run();
 
     SPDLOG_INFO("Initializing engine");
     execute();
