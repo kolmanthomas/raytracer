@@ -5,6 +5,7 @@
 #include "vec3.hpp"
 
 namespace global {
+
 // Camera(int image_width = 400, float aspect_ratio = 16.0/9.0, float focal_length = 1.0, float viewport_height = 2.0); 
 constexpr int image_width = 400;
 constexpr float aspect_ratio = 16.0/9.0;

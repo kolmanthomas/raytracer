@@ -19,21 +19,22 @@ VkCommandPool create_command_pool(gpu::LightlyDevice phys_device_struct, VkDevic
     return command_pool;
 }
 
-VkCommandBuffer create_command_buffer(VkDevice device, VkCommandPool command_pool)
+std::vector<VkCommandBuffer> create_command_buffers(VkDevice device, VkCommandPool command_pool) 
 {
+    std::vector<VkCommandBuffer> command_buffers(gpu::global::max_frames_in_flight);
+
     VkCommandBufferAllocateInfo alloc_info {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool = command_pool,
         .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = 1
+        .commandBufferCount = static_cast<uint32_t>(gpu::global::max_frames_in_flight)
     };
-
-    VkCommandBuffer command_buffer;
-    if (vkAllocateCommandBuffers(device, &alloc_info, &command_buffer) != VK_SUCCESS) {
+ 
+    if (vkAllocateCommandBuffers(device, &alloc_info, command_buffers.data()) != VK_SUCCESS) {
         throw std::runtime_error("Failed to allocate command buffers!");
     }
 
-    return command_buffer;
+    return command_buffers;
 }
 
 void record_command_buffer(VkCommandBuffer command_buffer, VkRenderPass render_pass, const std::vector<VkFramebuffer>& swap_chain_framebuffers, uint32_t image_index, VkPipeline graphics_pipeline)

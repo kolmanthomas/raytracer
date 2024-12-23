@@ -40,9 +40,7 @@ const std::vector<VkDynamicState> dynamic_states = {
     VK_DYNAMIC_STATE_SCISSOR
 };
 
-void init_window()
-{
-}
+const int MAX_FRAMES_IN_FLIGHT = 2;
 
 void run()
 {
@@ -165,19 +163,21 @@ public:
     VkPipeline graphics_pipeline;
     std::vector<VkFramebuffer> swap_chain_framebuffers;
     VkCommandPool command_pool;
-    VkCommandBuffer command_buffer;
+    std::vector<VkCommandBuffer> command_buffers;
     
-    VkSemaphore image_available_semaphore;
-    VkSemaphore render_finished_semaphore;
-    VkFence in_flight_fence;
+    std::vector<VkSemaphore> image_available_semaphores;
+    std::vector<VkSemaphore> render_finished_semaphores;
+    std::vector<VkFence> in_flight_fences;
 };
 VulkanMemoryManagement vmm; 
 
 void cleanup()
 {
-    vkDestroySemaphore(vmm.device, vmm.image_available_semaphore, nullptr);
-    vkDestroySemaphore(vmm.device, vmm.render_finished_semaphore, nullptr);
-    vkDestroyFence(vmm.device, vmm.in_flight_fence, nullptr);
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkDestroySemaphore(vmm.device, vmm.image_available_semaphores[i], nullptr);
+        vkDestroySemaphore(vmm.device, vmm.render_finished_semaphores[i], nullptr);
+        vkDestroyFence(vmm.device, vmm.in_flight_fences[i], nullptr);
+    }
     SPDLOG_INFO("Destroyed semaphores and fences");
 
     vkDestroyCommandPool(vmm.device, vmm.command_pool, nullptr);
@@ -231,19 +231,19 @@ void cleanup()
     SPDLOG_INFO("Terminated GLFW");
 }
 
-void draw_frame()
+void draw_frame(uint32_t current_frame)
 {
-    vkWaitForFences(vmm.device, 1, &vmm.in_flight_fence, VK_TRUE, std::numeric_limits<uint64_t>::max()); 
-    vkResetFences(vmm.device, 1, &vmm.in_flight_fence);
+    vkWaitForFences(vmm.device, 1, &vmm.in_flight_fences[current_frame], VK_TRUE, std::numeric_limits<uint64_t>::max()); 
+    vkResetFences(vmm.device, 1, &vmm.in_flight_fences[current_frame]);
 
     uint32_t image_index;
-    vkAcquireNextImageKHR(vmm.device, vmm.swap_chain, std::numeric_limits<uint64_t>::max(), vmm.image_available_semaphore, VK_NULL_HANDLE, &image_index);
+    vkAcquireNextImageKHR(vmm.device, vmm.swap_chain, std::numeric_limits<uint64_t>::max(), vmm.image_available_semaphores[current_frame], VK_NULL_HANDLE, &image_index);
 
-    vkResetCommandBuffer(vmm.command_buffer, 0);
-    gpu::record_command_buffer(vmm.command_buffer, vmm.render_pass, vmm.swap_chain_framebuffers, image_index, vmm.graphics_pipeline);
+    vkResetCommandBuffer(vmm.command_buffers[current_frame], 0);
+    gpu::record_command_buffer(vmm.command_buffers[current_frame], vmm.render_pass, vmm.swap_chain_framebuffers, image_index, vmm.graphics_pipeline);
 
-    VkSemaphore wait_semaphores[] = {vmm.image_available_semaphore};
-    VkSemaphore signal_semaphores[] = { vmm.render_finished_semaphore };
+    VkSemaphore wait_semaphores[] = {vmm.image_available_semaphores[current_frame]};
+    VkSemaphore signal_semaphores[] = { vmm.render_finished_semaphores[current_frame] };
     VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkSubmitInfo submit_info {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -251,12 +251,12 @@ void draw_frame()
         .pWaitSemaphores = wait_semaphores,
         .pWaitDstStageMask = wait_stages,
         .commandBufferCount = 1,
-        .pCommandBuffers = &vmm.command_buffer,
+        .pCommandBuffers = &vmm.command_buffers[current_frame],
         .signalSemaphoreCount = 1,
         .pSignalSemaphores = signal_semaphores,
     };
 
-    if (vkQueueSubmit(vmm.graphics_queue, 1, &submit_info, vmm.in_flight_fence) != VK_SUCCESS) {
+    if (vkQueueSubmit(vmm.graphics_queue, 1, &submit_info, vmm.in_flight_fences[current_frame]) != VK_SUCCESS) {
         throw std::runtime_error("Failed to submit draw command buffer!");
     }
 
@@ -306,21 +306,26 @@ void execute()
     vmm.swap_chain_framebuffers = gpu::create_framebuffer(vmm.swap_chain_image_views, vmm.device, vmm.render_pass);
 
     vmm.command_pool = gpu::create_command_pool(vmm.physical_device, vmm.device);
-    vmm.command_buffer = gpu::create_command_buffer(vmm.device, vmm.command_pool);
+    vmm.command_buffers = gpu::create_command_buffers(vmm.device, vmm.command_pool);
 
-    vmm.image_available_semaphore = gpu::create_semaphore(vmm.device);
-    vmm.render_finished_semaphore = gpu::create_semaphore(vmm.device);
-    vmm.in_flight_fence = gpu::create_fence(vmm.device);
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vmm.image_available_semaphores.push_back(gpu::create_semaphore(vmm.device));
+        vmm.render_finished_semaphores.push_back(gpu::create_semaphore(vmm.device));
+        vmm.in_flight_fences.push_back(gpu::create_fence(vmm.device));
+    }
 
     CircularBuffer<float, 64> framerate_buffer;
 
+    uint32_t current_frame = 0;
     SPDLOG_INFO("Beginning render loop!");
     while (!glfwWindowShouldClose(window)) {
 #ifdef INSTRUMENTATION_ON 
         std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 #endif
+        current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+
         glfwPollEvents();
-        draw_frame();
+        draw_frame(current_frame);
 
 #ifdef INSTRUMENTATION_ON
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
@@ -336,6 +341,8 @@ void execute()
 
 
 
+// Preconditions for program:
+// std::size_t is at least 32 bits
 int main(int argc, const char *const argv[])
 {
     // <Convert command-line argiments to vector of strings>

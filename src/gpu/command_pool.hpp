@@ -6,7 +6,7 @@
 namespace gpu {
 
 VkCommandPool create_command_pool(gpu::LightlyDevice phys_device_struct, VkDevice device);
-VkCommandBuffer create_command_buffer(VkDevice device, VkCommandPool command_pool);
+std::vector<VkCommandBuffer> create_command_buffers(VkDevice device, VkCommandPool command_pool); 
 void record_command_buffer(VkCommandBuffer command_buffer, VkRenderPass render_pass, const std::vector<VkFramebuffer>& swap_chain_framebuffers, uint32_t image_index, VkPipeline graphics_pipeline);
 
 } // namespace gpu

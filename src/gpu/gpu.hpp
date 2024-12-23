@@ -27,5 +27,12 @@ const std::vector<const char*> required_extensions {
     VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
 };
 
+namespace gpu {
+namespace global {
+
+constexpr int max_frames_in_flight = 2;
+
+}
+}
 
 
