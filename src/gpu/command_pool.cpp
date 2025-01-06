@@ -37,7 +37,16 @@ std::vector<VkCommandBuffer> create_command_buffers(VkDevice device, VkCommandPo
     return command_buffers;
 }
 
-void record_command_buffer(VkCommandBuffer command_buffer, VkRenderPass render_pass, const std::vector<VkFramebuffer>& swap_chain_framebuffers, uint32_t image_index, VkPipeline graphics_pipeline)
+void record_command_buffer(
+    VkCommandBuffer command_buffer, 
+    VkRenderPass render_pass, 
+    const std::vector<VkFramebuffer>& swap_chain_framebuffers, 
+    uint32_t image_index, 
+    VkPipeline graphics_pipeline,
+    VkBuffer vertex_buffer,
+    VkBuffer index_buffer,
+    std::vector<Vertex> vertices,
+    std::vector<uint16_t> indices)
 {
     VkCommandBufferBeginInfo begin_info {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -50,40 +59,48 @@ void record_command_buffer(VkCommandBuffer command_buffer, VkRenderPass render_p
     }
 
     VkClearValue clear_color = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+    /*
     VkRect2D render_area {
         .offset = {0, 0},
         .extent = gpu::swap_chain_extent
     };
+    */
 
     VkRenderPassBeginInfo render_pass_info {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
         .renderPass = render_pass,
         .framebuffer = swap_chain_framebuffers[image_index],
-        .renderArea = render_area,
         .clearValueCount = 1,
         .pClearValues = &clear_color,
     };
+    render_pass_info.renderArea.offset = {0, 0};
+    render_pass_info.renderArea.extent = gpu::swap_chain_extent;
 
     vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
+        vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
 
-    VkViewport viewport {
-        .x = 0.0f,
-        .y = 0.0f,
-        .width = static_cast<float>(gpu::swap_chain_extent.width),
-        .height = static_cast<float>(gpu::swap_chain_extent.height),
-        .minDepth = 0.0f,
-        .maxDepth = 1.0f
-    };
-    vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+        VkBuffer vertex_buffers[] = { vertex_buffer };
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers, offsets);
 
-    VkRect2D scissor {
-        .offset = {0, 0},
-        .extent = gpu::swap_chain_extent
-    };
-    vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+        VkViewport viewport {
+            .x = 0.0f,
+            .y = 0.0f,
+            .width = static_cast<float>(gpu::swap_chain_extent.width),
+            .height = static_cast<float>(gpu::swap_chain_extent.height),
+            .minDepth = 0.0f,
+            .maxDepth = 1.0f
+        };
+        vkCmdSetViewport(command_buffer, 0, 1, &viewport);
 
-    vkCmdDraw(command_buffer, 3, 1, 0, 0);
+        VkRect2D scissor {
+            .offset = {0, 0},
+            .extent = gpu::swap_chain_extent
+        };
+        vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+
+        vkCmdBindIndexBuffer(command_buffer, index_buffer, 0, VK_INDEX_TYPE_UINT16);
+        vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
     vkCmdEndRenderPass(command_buffer);
 

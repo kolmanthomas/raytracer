@@ -1,15 +1,17 @@
 target_sources(${TARGET_NAME}
     PRIVATE
+    buffer.cpp
     command_pool.cpp
+    descriptor_set.cpp
+    extension.cpp
     fence.cpp
     framebuffer.cpp
 	instance.cpp
     image.cpp
     layer.cpp
-    extension.cpp
+    logical_device.cpp
     physical_device.cpp
     pipeline.cpp
-    logical_device.cpp
     renderpass.cpp
     semaphore.cpp
     shader.cpp

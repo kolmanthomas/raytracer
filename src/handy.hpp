@@ -21,3 +21,11 @@ inline const char * bool_to_str(bool b)
 {
   return b ? "True" : "False";
 }
+
+/*
+template<typename T>
+constexpr auto wide_cast<T>(T value)
+{
+   T 
+}
+*/

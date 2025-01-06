@@ -5,7 +5,9 @@
 
 #include "src/gpu/gpu.hpp"
 
+#include "src/gpu/buffer.hpp"
 #include "src/gpu/command_pool.hpp"
+#include "src/gpu/descriptor_set.hpp"
 #include "src/gpu/fence.hpp"
 #include "src/gpu/framebuffer.hpp"
 #include "src/gpu/instance.hpp"
@@ -19,16 +21,23 @@
 #include "src/gpu/swap_chain.hpp"
 #include "src/gpu/pipeline.hpp"
 
+#include "glslang/Include/glslang_c_interface.h"
+
 #include "src/circular_buffer.hpp"
 #include "src/file.hpp"
+#include "src/shader.hpp"
+#include "src/transform.hpp"
 
 #include "src/def.hpp"
 #include "src/render.hpp"
 #include "src/window.hpp"
 
 #include <stdexcept>
+#include <numbers>
 
 #include "spdlog/spdlog.h"
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 
 const std::vector<const char*> required_device_extensions = {
     VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME,
@@ -41,6 +50,18 @@ const std::vector<VkDynamicState> dynamic_states = {
 };
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
+
+const std::vector<Vertex> vertices = {
+        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}}, // top left, red 
+        {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}}, // top right, green
+        {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}, // bottom right, blue
+        {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}} // bottom left, white 
+};
+
+const std::vector<uint16_t> indices = {
+    0, 1, 2, 2, 3, 0
+};
+
 
 void run()
 {
@@ -164,12 +185,24 @@ public:
     std::vector<VkFramebuffer> swap_chain_framebuffers;
     VkCommandPool command_pool;
     std::vector<VkCommandBuffer> command_buffers;
+    VkDescriptorSetLayout descriptor_set_layout;
+
+    VkBuffer vertex_buffer;
+    VkDeviceMemory vertex_buffer_memory;
+    VkBuffer index_buffer;
+    VkDeviceMemory index_buffer_memory;
+
+    std::vector<VkBuffer> uniform_buffers;
+    std::vector<VkDeviceMemory> uniform_buffers_memory;
+    std::vector<void*> uniform_buffers_mapped;
     
     std::vector<VkSemaphore> image_available_semaphores;
     std::vector<VkSemaphore> render_finished_semaphores;
     std::vector<VkFence> in_flight_fences;
 };
 VulkanMemoryManagement vmm; 
+
+UniformBufferObject ubo;
 
 void cleanup()
 {
@@ -192,6 +225,13 @@ void cleanup()
         vkDestroyImageView(vmm.device, image_view, nullptr);
     }
     SPDLOG_INFO("Destroyed image views");
+
+    vkDestroyBuffer(vmm.device, vmm.index_buffer, nullptr);
+    vkFreeMemory(vmm.device, vmm.index_buffer_memory, nullptr);
+
+    vkDestroyBuffer(vmm.device, vmm.vertex_buffer, nullptr);
+    vkFreeMemory(vmm.device, vmm.vertex_buffer_memory, nullptr);
+    SPDLOG_INFO("Destroyed vertex buffer and associated memory");
 
     vkDestroyRenderPass(vmm.device, vmm.render_pass, nullptr);
     SPDLOG_INFO("Destroyed render pass");
@@ -231,6 +271,26 @@ void cleanup()
     SPDLOG_INFO("Terminated GLFW");
 }
 
+void update_uniform_buffer(uint32_t current_image)
+{
+    static auto start_time = std::chrono::high_resolution_clock::now();
+
+    auto current_time = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
+
+    UniformBufferObject ubo {};
+    /*
+    ubo.model = Eigen::Matrix4f::Identity() * Eigen::AngleAxisf(time * std::numbers::pi / 4, Eigen::Vector3f::UnitZ());
+    ubo.view = transform::world_to_camera(Eigen::Vector3f(2.0f, 2.0f, 2.0f), Eigen::Vector3f(0.0f, 0.0f, 0.0f), Eigen::Vector3f(0.0f, 0.0f, 1.0f));
+    */
+    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj = glm::perspective(glm::radians(45.0f), gpu::swap_chain_extent.width / (float) gpu::swap_chain_extent.height, 0.1f, 10.0f);
+    ubo.proj[1][1] *= -1;
+
+    memcpy(vmm.uniform_buffers_mapped[current_image], &ubo, sizeof(ubo));
+}
+
 void draw_frame(uint32_t current_frame)
 {
     vkWaitForFences(vmm.device, 1, &vmm.in_flight_fences[current_frame], VK_TRUE, std::numeric_limits<uint64_t>::max()); 
@@ -240,7 +300,7 @@ void draw_frame(uint32_t current_frame)
     vkAcquireNextImageKHR(vmm.device, vmm.swap_chain, std::numeric_limits<uint64_t>::max(), vmm.image_available_semaphores[current_frame], VK_NULL_HANDLE, &image_index);
 
     vkResetCommandBuffer(vmm.command_buffers[current_frame], 0);
-    gpu::record_command_buffer(vmm.command_buffers[current_frame], vmm.render_pass, vmm.swap_chain_framebuffers, image_index, vmm.graphics_pipeline);
+    gpu::record_command_buffer(vmm.command_buffers[current_frame], vmm.render_pass, vmm.swap_chain_framebuffers, image_index, vmm.graphics_pipeline, vmm.vertex_buffer, vmm.index_buffer, vertices, indices);
 
     VkSemaphore wait_semaphores[] = {vmm.image_available_semaphores[current_frame]};
     VkSemaphore signal_semaphores[] = { vmm.render_finished_semaphores[current_frame] };
@@ -275,6 +335,7 @@ void draw_frame(uint32_t current_frame)
 }
 
 
+
 void execute()
 {
     SPDLOG_INFO("Initializing engine");
@@ -297,16 +358,46 @@ void execute()
     auto vert_shader_code = read_binary_file("base_vert.spv");
     auto frag_shader_code = read_binary_file("base_frag.spv");
 
+    auto vert_shader = read_text_file("/Users/thomas/programming/raytracer/src/shaders/base_vert.vert");
+
+
+    /*
+    ShaderSource vertex_shader_source {
+        .name = "base_vert.vert",
+        .source = vert_shader
+    };
+    compile_shader_to_spirv(vertex_shader_source, GLSLANG_STAGE_VERTEX);
+    */
+
     vmm.shader_modules.push_back(gpu::create_shader_module(vmm.device, vert_shader_code));
     vmm.shader_modules.push_back(gpu::create_shader_module(vmm.device, frag_shader_code));
 
     vmm.render_pass = gpu::create_render_pass(vmm.device);
-    std::tie(vmm.pipeline_layout, vmm.graphics_pipeline) = gpu::create_pipeline(vmm.device, vmm.shader_modules[0], vmm.shader_modules[1], vmm.render_pass);
+    //vmm.descriptor_set_layout = gpu::create_descriptor_set_layout(vmm.device);
+    //std::tie(vmm.pipeline_layout, vmm.graphics_pipeline) = gpu::create_pipeline(vmm.device, vmm.shader_modules[0], vmm.shader_modules[1], vmm.render_pass, vmm.descriptor_set_layout);
+    std::tie(vmm.pipeline_layout, vmm.graphics_pipeline) = gpu::create_pipeline(vmm.device, vmm.shader_modules[0], vmm.shader_modules[1], vmm.render_pass); 
 
     vmm.swap_chain_framebuffers = gpu::create_framebuffer(vmm.swap_chain_image_views, vmm.device, vmm.render_pass);
 
     vmm.command_pool = gpu::create_command_pool(vmm.physical_device, vmm.device);
+
+    auto vertex_buffer = gpu::create_vertex_buffer(vmm.physical_device.device, vmm.device, vertices, vmm.command_pool, vmm.graphics_queue);
+    vmm.vertex_buffer = vertex_buffer.data;
+    vmm.vertex_buffer_memory = vertex_buffer.memory;
+
+    auto index_buffer = gpu::create_index_buffer(vmm.physical_device.device, vmm.device, indices, vmm.command_pool, vmm.graphics_queue);
+    vmm.index_buffer = index_buffer.data;
+    vmm.index_buffer_memory = index_buffer.memory;
+
+    /*
+    auto ub = gpu::create_uniform_buffer(vmm.physical_device.device, vmm.device); 
+    vmm.uniform_buffers = ub.uniform_buffers;
+    vmm.uniform_buffers_memory = ub.uniform_buffers_memory;
+    vmm.uniform_buffers_mapped = ub.uniform_buffers_mapped;
+    */
+
     vmm.command_buffers = gpu::create_command_buffers(vmm.device, vmm.command_pool);
+
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vmm.image_available_semaphores.push_back(gpu::create_semaphore(vmm.device));

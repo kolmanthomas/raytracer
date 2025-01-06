@@ -10,13 +10,11 @@ endif()
     
 
 set(TARGET_NAME "raytracer")
+set(SHADER_TARGET_NAME "raytracer_shaders")
 #set(TARGET_NAME_LIB "CLox_Lib")
 set(TEST_NAME "raytracer_test")
 set(TEST_NAME "raytracer_test")
 set(COMPILE_FEATURES cxx_std_20)
-
-#message(${CMAKE_PREFIX_PATH})
-message(${CMAKE_SOURCE_DIR}/src)
 
 enable_testing()
 find_package(Vulkan REQUIRED)
@@ -24,6 +22,8 @@ find_package(GTest CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(eigen3 CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
+find_package(glslang CONFIG REQUIRED)
+find_package(glm CONFIG REQUIRED)
 
 message(${Vulkan_LIBRARY})
 
@@ -53,6 +53,8 @@ target_link_libraries(
     spdlog::spdlog
     glfw
     Vulkan::Vulkan
+    glslang::glslang glslang::glslang-default-resource-limits glslang::SPIRV glslang::SPVRemapper
+    glm::glm
 )
 
 target_include_directories(
@@ -66,6 +68,7 @@ target_include_directories(
     PRIVATE
     ${CMAKE_SOURCE_DIR}
 )
+
 
 include(GoogleTest)
 

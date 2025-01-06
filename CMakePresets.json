@@ -33,7 +33,7 @@
         "displayName": "Clang Debug Config",
         "inherits": ["debug"],
         "cacheVariables": {
-            "CMAKE_CXX_FLAGS": "-g -O0 -march=native"
+            "CMAKE_CXX_FLAGS": "-g -O0 -march=native -Wconversion -Wsign-conversion -Wall -Wextra"
         }
     },
     {

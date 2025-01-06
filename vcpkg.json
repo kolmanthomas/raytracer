@@ -4,6 +4,8 @@
         "gtest", 
         "eigen3", 
         "spdlog", 
-        "glfw3"
+        "glfw3",
+        "glslang",
+        "glm"
     ]
 }

@@ -33,7 +33,7 @@ GLFWwindow* init_glfw()
 
     // No errors can be made when GLFW is initialized and enums are valid
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     SPDLOG_INFO("Passed window hints to GLFW");
 
     SPDLOG_INFO("Initializing GLFW window...");

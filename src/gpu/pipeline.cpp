@@ -7,6 +7,7 @@ std::tuple<VkPipelineLayout, VkPipeline> create_pipeline(
     VkShaderModule vert_shader_module,
     VkShaderModule frag_shader_module,
     VkRenderPass renderpass
+    //VkDescriptorSetLayout descriptor_set_layout
 )
 {
     SPDLOG_INFO("Creating pipeline...");
@@ -28,12 +29,15 @@ std::tuple<VkPipelineLayout, VkPipeline> create_pipeline(
 
     VkPipelineShaderStageCreateInfo shader_stages[] = { vert_shader_stage_info, frag_shader_stage_info };
 
+    auto binding_description = Vertex::get_binding_description();
+    auto attribute_descriptions = Vertex::get_attribute_descriptions();
+
     VkPipelineVertexInputStateCreateInfo vertex_input_info {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .vertexBindingDescriptionCount = 0,
-        .pVertexBindingDescriptions = nullptr,
-        .vertexAttributeDescriptionCount = 0,
-        .pVertexAttributeDescriptions = nullptr,
+        .vertexBindingDescriptionCount = 1,
+        .pVertexBindingDescriptions = &binding_description,
+        .vertexAttributeDescriptionCount = static_cast<uint32_t>(attribute_descriptions.size()),
+        .pVertexAttributeDescriptions = attribute_descriptions.data(),
     };
     SPDLOG_INFO("Created vertex input info");
 
@@ -96,6 +100,8 @@ std::tuple<VkPipelineLayout, VkPipeline> create_pipeline(
 
     VkPipelineLayoutCreateInfo pipeline_layout_info {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        //.setLayoutCount = 1,
+        //.pSetLayouts = &descriptor_set_layout,
         .setLayoutCount = 0,
         .pSetLayouts = nullptr,
         .pushConstantRangeCount = 0,
