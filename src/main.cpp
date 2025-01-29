@@ -25,7 +25,7 @@
 
 #include "src/circular_buffer.hpp"
 #include "src/file.hpp"
-#include "src/shader.hpp"
+//#include "src/shader.hpp"
 #include "src/transform.hpp"
 
 #include "src/def.hpp"
@@ -33,11 +33,10 @@
 #include "src/window.hpp"
 
 #include <stdexcept>
-#include <numbers>
 
 #include "spdlog/spdlog.h"
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
+#define GLM_FORCE_RADIANS
+
 
 const std::vector<const char*> required_device_extensions = {
     VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME,
@@ -242,6 +241,8 @@ void cleanup()
     vkDestroyPipelineLayout(vmm.device, vmm.pipeline_layout, nullptr);
     SPDLOG_INFO("Destroyed pipeline layout");
 
+    vkDestroyDescriptorSetLayout(vmm.device, vmm.descriptor_set_layout, nullptr);
+
     vkDestroySwapchainKHR(vmm.device, vmm.swap_chain, nullptr);
     SPDLOG_INFO("Destroyed swap chain");
 
@@ -283,10 +284,12 @@ void update_uniform_buffer(uint32_t current_image)
     ubo.model = Eigen::Matrix4f::Identity() * Eigen::AngleAxisf(time * std::numbers::pi / 4, Eigen::Vector3f::UnitZ());
     ubo.view = transform::world_to_camera(Eigen::Vector3f(2.0f, 2.0f, 2.0f), Eigen::Vector3f(0.0f, 0.0f, 0.0f), Eigen::Vector3f(0.0f, 0.0f, 1.0f));
     */
+    /*
     ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), gpu::swap_chain_extent.width / (float) gpu::swap_chain_extent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
+    */
 
     memcpy(vmm.uniform_buffers_mapped[current_image], &ubo, sizeof(ubo));
 }
@@ -294,12 +297,16 @@ void update_uniform_buffer(uint32_t current_image)
 void draw_frame(uint32_t current_frame)
 {
     vkWaitForFences(vmm.device, 1, &vmm.in_flight_fences[current_frame], VK_TRUE, std::numeric_limits<uint64_t>::max()); 
-    vkResetFences(vmm.device, 1, &vmm.in_flight_fences[current_frame]);
 
     uint32_t image_index;
     vkAcquireNextImageKHR(vmm.device, vmm.swap_chain, std::numeric_limits<uint64_t>::max(), vmm.image_available_semaphores[current_frame], VK_NULL_HANDLE, &image_index);
 
+    //update_uniform_buffer(image_index);
+
+    vkResetFences(vmm.device, 1, &vmm.in_flight_fences[current_frame]);
+
     vkResetCommandBuffer(vmm.command_buffers[current_frame], 0);
+
     gpu::record_command_buffer(vmm.command_buffers[current_frame], vmm.render_pass, vmm.swap_chain_framebuffers, image_index, vmm.graphics_pipeline, vmm.vertex_buffer, vmm.index_buffer, vertices, indices);
 
     VkSemaphore wait_semaphores[] = {vmm.image_available_semaphores[current_frame]};
@@ -355,10 +362,34 @@ void execute()
 
     // Compile shaders
     
-    auto vert_shader_code = read_binary_file("base_vert.spv");
-    auto frag_shader_code = read_binary_file("base_frag.spv");
+    //auto vert_shader_code = read_binary_file("base_vert.spv");
+    //auto frag_shader_code = read_binary_file("base_frag.spv");
 
-    auto vert_shader = read_text_file("/Users/thomas/programming/raytracer/src/shaders/base_vert.vert");
+    auto vert_shader_code = vkBLAS::utils::read_text_file("/Users/thomas/programming/raytracer/src/shaders/base_vert.vert");
+    auto frag_shader_code = vkBLAS::utils::read_text_file("/Users/thomas/programming/raytracer/src/shaders/base_frag.frag");
+
+    ShaderSource vertex_shader_source {
+        .name = "base_vert.spv",
+        .source = vert_shader_code
+    };
+    ShaderSource fragment_shader_source {
+        .name = "base_frag.spv",
+        .source = frag_shader_code
+    };
+    SPIRVBinary vert = gpu::compile_shader_to_spirv(vertex_shader_source, GLSLANG_STAGE_VERTEX);
+    SPIRVBinary frag = gpu::compile_shader_to_spirv(fragment_shader_source, GLSLANG_STAGE_FRAGMENT);
+
+    // Write back the 
+    std::vector<uint32_t> vert_words(vert.words, vert.words + vert.size);
+    vkBLAS::utils::write_file("base_vert.spv", vert_words);
+
+    /*
+    write_file("base_vert.spv", vert.words);
+    write_file("base_frag.spv", frag.words);
+
+    auto vert_shader_code_spirv = read_binary_file("base_vert.spv");
+    auto frag_shader_code_spirv = read_binary_file("base_frag.spv");
+    */
 
 
     /*
@@ -369,13 +400,15 @@ void execute()
     compile_shader_to_spirv(vertex_shader_source, GLSLANG_STAGE_VERTEX);
     */
 
-    vmm.shader_modules.push_back(gpu::create_shader_module(vmm.device, vert_shader_code));
-    vmm.shader_modules.push_back(gpu::create_shader_module(vmm.device, frag_shader_code));
+    vmm.shader_modules.push_back(gpu::create_shader_module(vmm.device, vert));
+    vmm.shader_modules.push_back(gpu::create_shader_module(vmm.device, frag));
+
+    SPDLOG_INFO("Does it keep going?");
 
     vmm.render_pass = gpu::create_render_pass(vmm.device);
     //vmm.descriptor_set_layout = gpu::create_descriptor_set_layout(vmm.device);
-    //std::tie(vmm.pipeline_layout, vmm.graphics_pipeline) = gpu::create_pipeline(vmm.device, vmm.shader_modules[0], vmm.shader_modules[1], vmm.render_pass, vmm.descriptor_set_layout);
-    std::tie(vmm.pipeline_layout, vmm.graphics_pipeline) = gpu::create_pipeline(vmm.device, vmm.shader_modules[0], vmm.shader_modules[1], vmm.render_pass); 
+    std::tie(vmm.pipeline_layout, vmm.graphics_pipeline) = gpu::create_pipeline(vmm.device, vmm.shader_modules[0], vmm.shader_modules[1], vmm.render_pass, vmm.descriptor_set_layout);
+    //std::tie(vmm.pipeline_layout, vmm.graphics_pipeline) = gpu::create_pipeline(vmm.device, vmm.shader_modules[0], vmm.shader_modules[1], vmm.render_pass); 
 
     vmm.swap_chain_framebuffers = gpu::create_framebuffer(vmm.swap_chain_image_views, vmm.device, vmm.render_pass);
 
@@ -389,12 +422,10 @@ void execute()
     vmm.index_buffer = index_buffer.data;
     vmm.index_buffer_memory = index_buffer.memory;
 
-    /*
     auto ub = gpu::create_uniform_buffer(vmm.physical_device.device, vmm.device); 
     vmm.uniform_buffers = ub.uniform_buffers;
     vmm.uniform_buffers_memory = ub.uniform_buffers_memory;
     vmm.uniform_buffers_mapped = ub.uniform_buffers_mapped;
-    */
 
     vmm.command_buffers = gpu::create_command_buffers(vmm.device, vmm.command_pool);
 
@@ -436,6 +467,12 @@ void execute()
 // std::size_t is at least 32 bits
 int main(int argc, const char *const argv[])
 {
+    if (argc > 1) {
+        auto store = argv[1];
+        if (strcmp(store, "Hello!")) {
+            SPDLOG_INFO("Store is 5");
+        }
+    }
     // <Convert command-line argiments to vector of strings>
     // <Declare variables for parsed command line>
     // <Process command-line arguments>

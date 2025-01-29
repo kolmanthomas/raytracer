@@ -8,8 +8,9 @@
 #include <string>
 #include <cstdlib>
 
+/*
 struct SPIRVBinary {
-    std::vector<uint32_t> words; // SPIR-V words
+    uint32_t* words; // SPIR-V words
     size_t size; // number of words in SPIR-V binary
 };
 
@@ -18,7 +19,7 @@ struct ShaderSource {
     std::string source;
 };
 
-SPIRVBinary compile_shader_to_spirv(const ShaderSource& shader_source, glslang_stage_t stage)
+inline SPIRVBinary compile_shader_to_spirv(const ShaderSource& shader_source, glslang_stage_t stage)
 {
     const char* cstr_shader_source = shader_source.source.c_str();   
     const glslang_input_t input = {
@@ -27,7 +28,7 @@ SPIRVBinary compile_shader_to_spirv(const ShaderSource& shader_source, glslang_s
         .client = GLSLANG_CLIENT_VULKAN,
         .client_version = GLSLANG_TARGET_VULKAN_1_2,
         .target_language = GLSLANG_TARGET_SPV,
-        .target_language_version = GLSLANG_TARGET_SPV_1_6,
+        .target_language_version = GLSLANG_TARGET_SPV_1_0,
         .code = cstr_shader_source,
         .default_version = 450,
         .default_profile = GLSLANG_NO_PROFILE,
@@ -78,12 +79,13 @@ SPIRVBinary compile_shader_to_spirv(const ShaderSource& shader_source, glslang_s
         glslang_shader_delete(shader);
         throw std::runtime_error("GLSL linking failed");
     }
+    SPDLOG_INFO("{}: GLSL linking succeeded", shader_source.name);
 
     glslang_program_SPIRV_generate(program, stage);
 
     bin.size = glslang_program_SPIRV_get_size(program);
-    bin.words.resize(bin.size);
-    glslang_program_SPIRV_get(program, bin.words.data());
+    bin.words = static_cast<uint32_t*>(malloc(bin.size * sizeof(uint32_t)));
+    glslang_program_SPIRV_get(program, bin.words);
 
     const char* spirv_messages = glslang_program_SPIRV_get_messages(program);
     if (spirv_messages) {
@@ -94,32 +96,6 @@ SPIRVBinary compile_shader_to_spirv(const ShaderSource& shader_source, glslang_s
     glslang_shader_delete(shader);
 
     return bin;
-
-
-
-    /*
-    glslang::InitializeProcess();
-
-    glslang::TShader vert_shader(EShLangVertex); 
-
-    const char* shader_source_cstr[1] = { shader_source.c_str() };
-    vert_shader.setStrings(shader_source_cstr, 1);
-
-    // Use appropriate Vulkan version
-    glslang::EShTargetClientVersion targetApiVersion = glslang::EShTargetVulkan_1_3;
-    vert_shader.setEnvClient(glslang::EShClientVulkan, targetApiVersion);
-
-    glslang::EShTargetLanguageVersion spirvVersion = glslang::EShTargetSpv_1_3;
-    vert_shader.setEnvTarget(glslang::EshTargetSpv, spirvVersion);
-
-    vert_shader.setEntryPoint("main"); // We can specify a different entry point
-    
-    // Parse and verify shaders
-    if (!vert_shader.parse(&DefaultTBuiltInResource, 450, false, EShMsgDefault)) {
-        cerr << "Vertex shader compilation failed:\n" << vertShader->getInfoLog() << endl;
-        return 1;
-    }
-    */
-
 }
+*/
 

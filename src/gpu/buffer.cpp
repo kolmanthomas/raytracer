@@ -150,14 +150,19 @@ UniformBuffer create_uniform_buffer(VkPhysicalDevice physical_device, VkDevice d
     VkDeviceSize buffer_size = sizeof(UniformBufferObject);
 
     UniformBuffer ub;
+    //ub.uniform_buffers.resize(global::max_frames_in_flight);
+    //ub.uniform_buffers_memory.resize(global::max_frames_in_flight);
+    ub.uniform_buffers_mapped.resize(global::max_frames_in_flight);
 
     for (size_t i = 0; i < global::max_frames_in_flight; i++) {
         auto buffer = create_buffer(device, physical_device, buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT); 
         ub.uniform_buffers.push_back(buffer.data);
         ub.uniform_buffers_memory.push_back(buffer.memory);
 
-        vkMapMemory(device, ub.uniform_buffers_memory.back(), 0, buffer_size, 0, &ub.uniform_buffers_mapped.back());
+        vkMapMemory(device, ub.uniform_buffers_memory[i], 0, buffer_size, 0, &ub.uniform_buffers_mapped[i]);
     }
+
+
 
     return ub;
 }

@@ -2,12 +2,25 @@
 
 #include "src/gpu/gpu.hpp"
 #include "src/gpu/logical_device.hpp"
+#include "glslang/Include/glslang_c_interface.h"
+#include <glslang/Public/resource_limits_c.h>
 
 #include <Eigen/Dense>
 #include <glm/glm.hpp>
 
 #include <array>
 #include <vector> 
+
+struct SPIRVBinary {
+    uint32_t* words; // SPIR-V words
+    size_t size; // number of words in SPIR-V binary
+};
+
+struct ShaderSource {
+    std::string name;
+    std::string source;
+};
+
 
 struct Vertex {
 public:
@@ -56,6 +69,10 @@ struct UniformBufferObject {
 };
 
 namespace gpu {
-VkShaderModule create_shader_module(VkDevice device, const std::vector<char>& code);
+
+VkShaderModule create_shader_module(VkDevice device, const SPIRVBinary& code);
+
+SPIRVBinary compile_shader_to_spirv(const ShaderSource& shader_source, glslang_stage_t stage);
+
 
 }

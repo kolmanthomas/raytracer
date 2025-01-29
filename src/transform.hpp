@@ -4,6 +4,7 @@
 
 namespace transform {
 
+/*
 inline Eigen::Matrix4f lookat(const Eigen::Vector3f& from, const Eigen::Vector3f& to)
 {
     Eigen::Vector3f forward = (from - to).normalized();
@@ -47,8 +48,19 @@ inline Eigen::Matrix4f world_to_camera(const Eigen::Vector3f& from, const Eigen:
     result(1, 3) = -from.y();
     result(2, 3) = -from.z();
     return result; 
-
 }
 
+inline Eigen::Matrix4f perspective(const float angle, const float aspect, const float near, const float far)
+{
+    float f = 1.0f / std::tan(angle / 2.0f);
+    Eigen::Matrix4f result = Eigen::Matrix4f::Zero();
+    result(0, 0) = f / aspect;
+    result(1, 1) = f;
+    result(2, 2) = (far + near) / (near - far);
+    result(2, 3) = (2.0f * far * near) / (near - far);
+    result(3, 2) = -1.0f;
+    return result;
+
+*/
 
 } // namespace transform
